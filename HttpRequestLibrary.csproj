@@ -1,0 +1,74 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <OutputType>Library</OutputType>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <AssemblyName>HttpRequestLibrary</AssemblyName>
+    <RootNamespace>HttpRequestLibrary</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ILRepack" Version="2.0.34" />
+    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="1.1.1" />
+    <PackageReference Include="System.Buffers" Version="4.6.1" />
+    <PackageReference Include="System.Net.Http" Version="4.3.4" />
+    <PackageReference Include="System.Numerics.Vectors" Version="4.6.1" />
+    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.1.2" />
+    <PackageReference Include="System.Text.Encodings.Web" Version="4.7.2" />
+    <PackageReference Include="System.Text.Json" Version="4.7.2" />
+    <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.6.3" />
+    <PackageReference Include="System.ValueTuple" Version="4.6.1" />
+  </ItemGroup>
+
+  <Target Name="CopyDependencies" BeforeTargets="Build">
+    <Copy SourceFiles="$(NuGetPackageRoot)system.text.json\4.7.2\lib\net461\System.Text.Json.dll" DestinationFolder="$(OutputPath)" Condition="Exists('$(NuGetPackageRoot)system.text.json\4.7.2\lib\net461\System.Text.Json.dll')" />
+    <Copy SourceFiles="$(NuGetPackageRoot)system.memory\4.5.5\lib\net461\System.Memory.dll" DestinationFolder="$(OutputPath)" Condition="Exists('$(NuGetPackageRoot)system.memory\4.5.5\lib\net461\System.Memory.dll')" />
+    <Copy SourceFiles="$(NuGetPackageRoot)system.text.encodings.web\4.7.2\lib\net461\System.Text.Encodings.Web.dll" DestinationFolder="$(OutputPath)" Condition="Exists('$(NuGetPackageRoot)system.text.encodings.web\4.7.2\lib\net461\System.Text.Encodings.Web.dll')" />
+    <Copy SourceFiles="$(NuGetPackageRoot)system.valuetuple\4.6.1\lib\net462\System.ValueTuple.dll" DestinationFolder="$(OutputPath)" Condition="Exists('$(NuGetPackageRoot)system.valuetuple\4.6.1\lib\net462\System.ValueTuple.dll')" />
+    <Copy SourceFiles="$(NuGetPackageRoot)system.numerics.vectors\4.6.1\lib\net462\System.Numerics.Vectors.dll" DestinationFolder="$(OutputPath)" Condition="Exists('$(NuGetPackageRoot)system.numerics.vectors\4.6.1\lib\net462\System.Numerics.Vectors.dll')" />
+    <Copy SourceFiles="$(NuGetPackageRoot)system.threading.tasks.extensions\4.6.3\lib\net462\System.Threading.Tasks.Extensions.dll" DestinationFolder="$(OutputPath)" Condition="Exists('$(NuGetPackageRoot)system.threading.tasks.extensions\4.6.3\lib\net462\System.Threading.Tasks.Extensions.dll')" />
+    <Copy SourceFiles="$(NuGetPackageRoot)microsoft.bcl.asyncinterfaces\1.1.1\lib\net461\Microsoft.Bcl.AsyncInterfaces.dll" DestinationFolder="$(OutputPath)" Condition="Exists('$(NuGetPackageRoot)microsoft.bcl.asyncinterfaces\1.1.1\lib\net461\Microsoft.Bcl.AsyncInterfaces.dll')" />
+    <Copy SourceFiles="$(NuGetPackageRoot)system.buffers\4.6.1\lib\net462\System.Buffers.dll" DestinationFolder="$(OutputPath)" Condition="Exists('$(NuGetPackageRoot)system.buffers\4.6.1\lib\net462\System.Buffers.dll')" />
+    <Copy SourceFiles="$(NuGetPackageRoot)system.runtime.compilerservices.unsafe\6.1.2\lib\net462\System.Runtime.CompilerServices.Unsafe.dll" DestinationFolder="$(OutputPath)" Condition="Exists('$(NuGetPackageRoot)system.runtime.compilerservices.unsafe\6.1.2\lib\net462\System.Runtime.CompilerServices.Unsafe.dll')" />
+    <Copy SourceFiles="$(NuGetPackageRoot)system.net.http\4.3.4\lib\net46\System.Net.Http.dll" DestinationFolder="$(OutputPath)" Condition="Exists('$(NuGetPackageRoot)system.net.http\4.3.4\lib\net46\System.Net.Http.dll')" />
+  </Target>
+
+  <Target Name="CheckDlls" BeforeTargets="ILRepack" Condition="'$(Configuration)' == 'Debug' Or '$(Configuration)' == 'Release'">
+    <Message Text="Checking for DLLs in $(OutputPath)" Importance="High" />
+    <Message Text="System.Text.Json.dll exists: $([System.IO.File]::Exists('$(OutputPath)System.Text.Json.dll'))" Importance="High" />
+    <Message Text="System.Memory.dll exists: $([System.IO.File]::Exists('$(OutputPath)System.Memory.dll'))" Importance="High" />
+    <Message Text="System.Text.Encodings.Web.dll exists: $([System.IO.File]::Exists('$(OutputPath)System.Text.Encodings.Web.dll'))" Importance="High" />
+    <Message Text="System.ValueTuple.dll exists: $([System.IO.File]::Exists('$(OutputPath)System.ValueTuple.dll'))" Importance="High" />
+    <Message Text="System.Numerics.Vectors.dll exists: $([System.IO.File]::Exists('$(OutputPath)System.Numerics.Vectors.dll'))" Importance="High" />
+    <Message Text="System.Threading.Tasks.Extensions.dll exists: $([System.IO.File]::Exists('$(OutputPath)System.Threading.Tasks.Extensions.dll'))" Importance="High" />
+    <Message Text="Microsoft.Bcl.AsyncInterfaces.dll exists: $([System.IO.File]::Exists('$(OutputPath)Microsoft.Bcl.AsyncInterfaces.dll'))" Importance="High" />
+    <Message Text="System.Buffers.dll exists: $([System.IO.File]::Exists('$(OutputPath)System.Buffers.dll'))" Importance="High" />
+    <Message Text="System.Runtime.CompilerServices.Unsafe.dll exists: $([System.IO.File]::Exists('$(OutputPath)System.Runtime.CompilerServices.Unsafe.dll'))" Importance="High" />
+    <Message Text="System.Net.Http.dll exists: $([System.IO.File]::Exists('$(OutputPath)System.Net.Http.dll'))" Importance="High" />
+  </Target>
+
+  <Target Name="ILRepack" AfterTargets="Build" Condition="'$(Configuration)' == 'Debug' Or '$(Configuration)' == 'Release'">
+    <PropertyGroup>
+      <ILRepackPath>$(NuGetPackageRoot)ilrepack\2.0.34\tools\ILRepack.exe</ILRepackPath>
+      <OutputDll>$(OutputPath)HttpRequestLibrary.dll</OutputDll>
+    </PropertyGroup>
+    <ItemGroup>
+      <MergeDlls Include="$(OutputPath)System.Text.Json.dll" Condition="Exists('$(OutputPath)System.Text.Json.dll')" />
+      <MergeDlls Include="$(OutputPath)System.Memory.dll" Condition="Exists('$(OutputPath)System.Memory.dll')" />
+      <MergeDlls Include="$(OutputPath)System.Text.Encodings.Web.dll" Condition="Exists('$(OutputPath)System.Text.Encodings.Web.dll')" />
+      <MergeDlls Include="$(OutputPath)System.ValueTuple.dll" Condition="Exists('$(OutputPath)System.ValueTuple.dll')" />
+      <MergeDlls Include="$(OutputPath)System.Numerics.Vectors.dll" Condition="Exists('$(OutputPath)System.Numerics.Vectors.dll')" />
+      <MergeDlls Include="$(OutputPath)System.Threading.Tasks.Extensions.dll" Condition="Exists('$(OutputPath)System.Threading.Tasks.Extensions.dll')" />
+      <MergeDlls Include="$(OutputPath)Microsoft.Bcl.AsyncInterfaces.dll" Condition="Exists('$(OutputPath)Microsoft.Bcl.AsyncInterfaces.dll')" />
+      <MergeDlls Include="$(OutputPath)System.Buffers.dll" Condition="Exists('$(OutputPath)System.Buffers.dll')" />
+      <MergeDlls Include="$(OutputPath)System.Runtime.CompilerServices.Unsafe.dll" Condition="Exists('$(OutputPath)System.Runtime.CompilerServices.Unsafe.dll')" />
+      <MergeDlls Include="$(OutputPath)System.Net.Http.dll" Condition="Exists('$(OutputPath)System.Net.Http.dll')" />
+    </ItemGroup>
+    <Message Text="ILRepack Command: $(ILRepackPath) /out:$(OutputDll) $(OutputPath)HttpRequestLibrary.dll @(MergeDlls, ' ') /internalize /lib:$(OutputPath) /verbose" Importance="High" />
+    <Exec Command="$(ILRepackPath) /out:$(OutputDll) $(OutputPath)HttpRequestLibrary.dll @(MergeDlls, ' ') /internalize /lib:$(OutputPath) /verbose" />
+    <Message Text="Output DLL: $(OutputDll)" Importance="High" />
+    <Exec Command="powershell -Command &quot;(Get-Item '$(OutputDll)').Length / 1KB&quot;" />
+  </Target>
+
+</Project>

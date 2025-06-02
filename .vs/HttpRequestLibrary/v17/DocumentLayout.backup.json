@@ -1,0 +1,71 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\SOURCES\\HttpRequestLibrary\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{76BBB91C-A029-473C-B9D3-DC32FCA099B3}|HttpRequestLibrary.csproj|c:\\sources\\httprequestlibrary\\httprequest.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{76BBB91C-A029-473C-B9D3-DC32FCA099B3}|HttpRequestLibrary.csproj|solutionrelative:httprequest.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{76BBB91C-A029-473C-B9D3-DC32FCA099B3}|HttpRequestLibrary.csproj|c:\\sources\\httprequestlibrary\\httprequestlibrary.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|",
+      "RelativeMoniker": "D:0:0:{76BBB91C-A029-473C-B9D3-DC32FCA099B3}|HttpRequestLibrary.csproj|solutionrelative:httprequestlibrary.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{76BBB91C-A029-473C-B9D3-DC32FCA099B3}|HttpRequestLibrary.csproj|c:\\sources\\httprequestlibrary\\readme.md||{EFC0BB08-EA7D-40C6-A696-C870411A895B}",
+      "RelativeMoniker": "D:0:0:{76BBB91C-A029-473C-B9D3-DC32FCA099B3}|HttpRequestLibrary.csproj|solutionrelative:readme.md||{EFC0BB08-EA7D-40C6-A696-C870411A895B}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 1,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedHeight": 200,
+          "SelectedChildIndex": 2,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "README.md",
+              "DocumentMoniker": "C:\\SOURCES\\HttpRequestLibrary\\README.md",
+              "RelativeDocumentMoniker": "README.md",
+              "ToolTip": "C:\\SOURCES\\HttpRequestLibrary\\README.md",
+              "RelativeToolTip": "README.md",
+              "ViewState": "AgIAAH4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001818|",
+              "WhenOpened": "2025-06-02T23:35:13.197Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "HttpRequestLibrary.csproj",
+              "DocumentMoniker": "C:\\SOURCES\\HttpRequestLibrary\\HttpRequestLibrary.csproj",
+              "RelativeDocumentMoniker": "HttpRequestLibrary.csproj",
+              "ToolTip": "C:\\SOURCES\\HttpRequestLibrary\\HttpRequestLibrary.csproj",
+              "RelativeToolTip": "HttpRequestLibrary.csproj",
+              "ViewState": "AgIAACEAAAAAAAAAAAAAAEkAAAAKAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
+              "WhenOpened": "2025-05-02T16:08:35.817Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "HttpRequest.cs",
+              "DocumentMoniker": "C:\\SOURCES\\HttpRequestLibrary\\HttpRequest.cs",
+              "RelativeDocumentMoniker": "HttpRequest.cs",
+              "ToolTip": "C:\\SOURCES\\HttpRequestLibrary\\HttpRequest.cs",
+              "RelativeToolTip": "HttpRequest.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAOkAAAAVAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-05-02T10:53:44.133Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
