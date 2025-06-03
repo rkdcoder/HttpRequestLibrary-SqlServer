@@ -152,6 +152,6 @@ Contributions are welcome! Please open issues or pull requests for improvements,
 
 ## **Authors**
 
-Developed and maintained by [Your Name].
+Developed and maintained by Rodrigo Kmiecik.
 
 ---
