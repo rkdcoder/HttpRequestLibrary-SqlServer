@@ -38,6 +38,8 @@ namespace HttpRequestLibrary
 
             try
             {
+                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls;
+                ServicePointManager.Expect100Continue = false;
                 // Validate inputs
                 if (method.IsNull || string.IsNullOrWhiteSpace(method.Value))
                 {
