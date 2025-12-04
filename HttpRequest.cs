@@ -66,7 +66,9 @@ namespace HttpRequestLibrary
                     // Create HttpWebRequest
                     HttpWebRequest request = (HttpWebRequest)WebRequest.Create(uri);
                     request.Method = method.Value.ToUpper();
-                    request.Timeout = timeout.Value > 0 ? timeout.Value : 120000; // Default 120s
+                    int timeoutValue = timeout.Value > 0 ? timeout.Value : 120000;
+                    request.Timeout = timeoutValue;
+                    request.ReadWriteTimeout = timeoutValue;
                     request.UserAgent = "HttpRequestLibrary/1.0";
 
                     // Parse and set headers
