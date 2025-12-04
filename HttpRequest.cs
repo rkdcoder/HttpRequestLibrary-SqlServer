@@ -13,8 +13,16 @@ namespace HttpRequestLibrary
 {
     public class HttpRequest
     {
-        private static readonly string[] ValidHttpMethods = { "GET", "POST", "PUT", "DELETE", "HEAD", "PATCH", "OPTIONS", "TRACE" };
-        private const int MaxPayloadSize = 10 * 1024 * 1024; // 10MB
+        private static readonly string[] ValidHttpMethods =
+        {
+            "GET", "POST", "PUT", "DELETE", "HEAD", "PATCH", "OPTIONS", "TRACE"
+        };
+
+        // Limites para rodar dentro do SQL Server (CLR)
+        private const int MaxPayloadSize = 20 * 1024 * 1024;         // 20MB
+        private const int MaxResponseSize = 20 * 1024 * 1024;        // 20MB
+        private const int MaxErrorResponseSize = 512 * 1024;         // 512KB
+        private const int DefaultTimeoutMilliseconds = 120_000;      // 120s
 
         private class HttpResponse
         {
@@ -23,7 +31,7 @@ namespace HttpRequestLibrary
             public long Timing { get; set; }
         }
 
-        [Microsoft.SqlServer.Server.SqlFunction(
+        [SqlFunction(
             DataAccess = DataAccessKind.None,
             FillRowMethodName = "FillRow",
             TableDefinition = "statusCode INT, response NVARCHAR(MAX), timing BIGINT")]
@@ -35,159 +43,219 @@ namespace HttpRequestLibrary
             SqlString payload)
         {
             var result = new HttpResponse();
+            var stopwatch = Stopwatch.StartNew();
+
+            bool hasError = false;
 
             try
             {
-                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls;
+                Uri uri = null;
+
+                // 1. Configuração de Segurança / Conexões (nível AppDomain)
+                ServicePointManager.SecurityProtocol =
+                    SecurityProtocolType.Tls12 |
+                    SecurityProtocolType.Tls11 |
+                    SecurityProtocolType.Tls;
+
                 ServicePointManager.Expect100Continue = false;
+
                 if (ServicePointManager.DefaultConnectionLimit < 512)
-                {
                     ServicePointManager.DefaultConnectionLimit = 512;
-                }
-                // Validate inputs
+
+                // 2. Validações de Entrada
                 if (method.IsNull || string.IsNullOrWhiteSpace(method.Value))
                 {
-                    result.Response = "Error: Method is required";
+                    SetError(result, 400, "Error: METHOD_REQUIRED");
+                    hasError = true;
                 }
-                else if (url.IsNull || string.IsNullOrWhiteSpace(url.Value) || !Uri.TryCreate(url.Value, UriKind.Absolute, out Uri uri))
+                else if (url.IsNull ||
+                         string.IsNullOrWhiteSpace(url.Value) ||
+                         !Uri.TryCreate(url.Value, UriKind.Absolute, out uri))
                 {
-                    result.Response = "Error: Invalid URL";
+                    SetError(result, 400, "Error: INVALID_URL");
+                    hasError = true;
                 }
-                else if (timeout.IsNull || timeout.Value < 0)
+                else if (!Array.Exists(
+                             ValidHttpMethods,
+                             m => m.Equals(method.Value, StringComparison.OrdinalIgnoreCase)))
                 {
-                    result.Response = "Error: Invalid timeout";
+                    SetError(result, 400, "Error: INVALID_HTTP_METHOD");
+                    hasError = true;
                 }
-                else if (!Array.Exists(ValidHttpMethods, m => m.Equals(method.Value, StringComparison.OrdinalIgnoreCase)))
+
+                // Timeout: NULL => default, negativo => erro
+                int timeoutValue = DefaultTimeoutMilliseconds;
+                if (!timeout.IsNull)
                 {
-                    result.Response = "Error: Invalid HTTP method";
+                    if (timeout.Value < 0)
+                    {
+                        SetError(result, 400, "Error: INVALID_TIMEOUT");
+                        hasError = true;
+                    }
+                    else
+                    {
+                        timeoutValue = timeout.Value;
+                    }
                 }
-                else
+
+                // 3. Execução da Requisição
+                if (!hasError)
                 {
-                    // Create HttpWebRequest
-                    HttpWebRequest request = (HttpWebRequest)WebRequest.Create(uri);
-                    request.Method = method.Value.ToUpper();
-                    int timeoutValue = timeout.Value > 0 ? timeout.Value : 120000;
+                    var request = (HttpWebRequest)WebRequest.Create(uri);
+                    request.Method = method.Value.ToUpperInvariant();
+
                     request.Timeout = timeoutValue;
                     request.ReadWriteTimeout = timeoutValue;
                     request.UserAgent = "HttpRequestLibrary/1.0";
 
-                    // Parse and set headers
+                    // 3.1 Headers
                     if (!headers.IsNull && !string.IsNullOrWhiteSpace(headers.Value))
                     {
                         try
                         {
-                            var headerList = JsonSerializer.Deserialize<JsonElement[]>(headers.Value);
-                            foreach (var header in headerList)
-                            {
-                                if (header.ValueKind != JsonValueKind.Object)
-                                {
-                                    throw new ArgumentException("Each header must be a JSON object");
-                                }
-
-                                var properties = header.EnumerateObject().ToList();
-                                if (properties.Count != 1)
-                                {
-                                    throw new ArgumentException("Each header object must have exactly one key-value pair");
-                                }
-
-                                var property = properties[0];
-                                string keyStr = property.Name;
-                                string valueStr = property.Value.GetString();
-
-                                if (!string.IsNullOrEmpty(keyStr) && valueStr != null)
-                                {
-                                    // Validate for invalid characters (CR/LF)
-                                    if (keyStr.IndexOfAny(new[] { '\r', '\n' }) >= 0 ||
-                                        valueStr.IndexOfAny(new[] { '\r', '\n' }) >= 0)
-                                    {
-                                        throw new ArgumentException("Header contains invalid characters (CR/LF)");
-                                    }
-
-                                    if (keyStr.Equals("Content-Type", StringComparison.OrdinalIgnoreCase))
-                                        request.ContentType = valueStr;
-                                    else if (keyStr.Equals("User-Agent", StringComparison.OrdinalIgnoreCase))
-                                        request.UserAgent = valueStr;
-                                    else
-                                        request.Headers.Add(keyStr, valueStr);
-                                }
-                            }
+                            ApplyHeadersFromJson(headers.Value, request);
                         }
                         catch (JsonException ex)
                         {
-                            result.Response = $"Error (JsonException): Invalid headers JSON - {ex.Message}";
+                            SetError(result, 400, $"Error: HEADERS_JSON_INVALID - {ex.Message}");
+                            hasError = true;
                         }
                         catch (ArgumentException ex)
                         {
-                            result.Response = $"Error (ArgumentException): {ex.Message}";
+                            SetError(result, 400, $"Error: HEADERS_INVALID - {ex.Message}");
+                            hasError = true;
                         }
                         catch (Exception ex)
                         {
-                            result.Response = $"Error (Exception): Unexpected error processing headers - {ex.Message}";
+                            SetError(result, 500, $"Error: HEADERS_UNEXPECTED - {ex.Message}");
+                            hasError = true;
                         }
                     }
 
-                    // Set payload for non-GET methods
-                    if (!payload.IsNull && request.Method != "GET" && request.Method != "HEAD")
+                    // 3.2 Payload
+                    if (!hasError &&
+                        !payload.IsNull &&
+                        request.Method != "GET" &&
+                        request.Method != "HEAD")
                     {
-                        string payloadValue = payload.Value ?? "";
+                        string payloadValue = payload.Value ?? string.Empty;
                         byte[] payloadBytes = Encoding.UTF8.GetBytes(payloadValue);
+
                         if (payloadBytes.Length > MaxPayloadSize)
                         {
-                            result.Response = $"Error: Payload exceeds maximum size of {MaxPayloadSize} bytes";
+                            SetError(
+                                result,
+                                413,
+                                $"Error: PAYLOAD_TOO_LARGE (max {MaxPayloadSize} bytes)");
+                            hasError = true;
                         }
                         else
                         {
                             if (string.IsNullOrEmpty(request.ContentType))
                                 request.ContentType = "application/json";
+
                             request.ContentLength = payloadBytes.Length;
-                            using (var stream = request.GetRequestStream())
-                                stream.Write(payloadBytes, 0, payloadBytes.Length);
+                            using (var requestStream = request.GetRequestStream())
+                            {
+                                requestStream.Write(payloadBytes, 0, payloadBytes.Length);
+                            }
                         }
                     }
 
-                    // Measure timing
-                    Stopwatch stopwatch = Stopwatch.StartNew();
-
-                    // Send request and get response
-                    using (var response = (HttpWebResponse)request.GetResponse())
-                    using (var stream = response.GetResponseStream())
+                    // 3.3 Envio
+                    if (!hasError)
                     {
-                        Encoding encoding = GetEncoding(response.ContentType);
-                        result.StatusCode = (int)response.StatusCode;
-                        result.Response = ReadStreamWithLimit(stream, 10 * 1024 * 1024, encoding); // 10MB limit
+                        // mede apenas a latência da chamada HTTP
+                        stopwatch.Restart();
+
+                        using (var response = (HttpWebResponse)request.GetResponse())
+                        {
+                            result.StatusCode = (int)response.StatusCode;
+
+                            using (var responseStream = response.GetResponseStream())
+                            {
+                                if (responseStream != null)
+                                {
+                                    Encoding encoding = GetEncoding(response.ContentType);
+                                    result.Response = ReadStreamWithLimit(
+                                        responseStream,
+                                        MaxResponseSize,
+                                        encoding);
+                                }
+                                else
+                                {
+                                    result.Response = string.Empty;
+                                }
+                            }
+                        }
+
                         result.Timing = stopwatch.ElapsedMilliseconds;
                     }
-
-                    stopwatch.Stop();
                 }
             }
             catch (WebException ex)
             {
-                if (ex.Response is HttpWebResponse errorResponse)
+                if (stopwatch.IsRunning)
+                    stopwatch.Stop();
+
+                result.Timing = stopwatch.ElapsedMilliseconds;
+
+                if (ex.Status == WebExceptionStatus.Timeout)
+                {
+                    result.StatusCode = 408;
+                    result.Response = "Error: REQUEST_TIMEOUT";
+                }
+                else if (ex.Response is HttpWebResponse errorResponse)
                 {
                     result.StatusCode = (int)errorResponse.StatusCode;
+
                     try
                     {
-                        Encoding encoding = GetEncoding(errorResponse.ContentType);
                         using (errorResponse)
-                        using (Stream responseStream = errorResponse.GetResponseStream())
+                        using (var responseStream = errorResponse.GetResponseStream())
                         {
-                            result.Response = ReadStreamWithLimit(responseStream, 1 * 1024 * 1024, encoding); // 1MB for errors
+                            if (responseStream != null)
+                            {
+                                Encoding encoding = GetEncoding(errorResponse.ContentType);
+                                result.Response = ReadStreamWithLimit(
+                                    responseStream,
+                                    MaxErrorResponseSize,
+                                    encoding);
+                            }
+                            else
+                            {
+                                result.Response = $"Error: HTTP_{result.StatusCode}_NO_BODY";
+                            }
                         }
                     }
                     catch (Exception innerEx)
                     {
-                        result.Response = $"Error (WebException): {ex.Message} - Inner: {innerEx.Message}";
+                        result.Response =
+                            $"Error: WEB_EXCEPTION_BODY_READ_FAILED - {ex.Message} -> {innerEx.Message}";
                     }
                 }
                 else
                 {
-                    result.Response = $"Error (WebException): {ex.Message}";
+                    result.StatusCode = 0;
+                    result.Response = $"Error: CONNECTION_FAILURE ({ex.Status}) - {ex.Message}";
                 }
             }
             catch (Exception ex)
             {
-                result.Response = $"Error ({ex.GetType().Name}): {ex.Message}";
+                if (stopwatch.IsRunning)
+                    stopwatch.Stop();
+
+                result.Timing = stopwatch.ElapsedMilliseconds;
+                result.StatusCode = 0;
+                result.Response = $"Error: UNEXPECTED_EXCEPTION - {ex.GetType().Name}: {ex.Message}";
+            }
+            finally
+            {
+                if (stopwatch.IsRunning)
+                    stopwatch.Stop();
+
+                if (result.Timing <= 0)
+                    result.Timing = stopwatch.ElapsedMilliseconds;
             }
 
             yield return result;
@@ -205,13 +273,68 @@ namespace HttpRequestLibrary
             timing = result.Timing;
         }
 
-        private static string ReadStreamWithLimit(Stream stream, int maxSize, Encoding encoding = null)
+        // --------- Helpers Privados ---------
+
+        private static void SetError(HttpResponse result, int statusCode, string message)
         {
+            result.StatusCode = statusCode;
+            result.Response = message;
+        }
+
+        private static void ApplyHeadersFromJson(string json, HttpWebRequest request)
+        {
+            var headerList = JsonSerializer.Deserialize<JsonElement[]>(json);
+
+            if (headerList == null)
+                throw new ArgumentException("Headers cannot be null.");
+
+            foreach (var header in headerList)
+            {
+                if (header.ValueKind != JsonValueKind.Object)
+                    throw new ArgumentException("Each header must be a JSON object.");
+
+                var properties = header.EnumerateObject().ToList();
+                if (properties.Count != 1)
+                    throw new ArgumentException("Each header object must have exactly one key-value pair.");
+
+                var property = properties[0];
+                string key = property.Name;
+                string value = property.Value.GetString();
+
+                if (string.IsNullOrEmpty(key) || value == null)
+                    continue;
+
+                if (key.IndexOfAny(new[] { '\r', '\n' }) >= 0 ||
+                    value.IndexOfAny(new[] { '\r', '\n' }) >= 0)
+                {
+                    throw new ArgumentException("Invalid characters in header.");
+                }
+
+                if (key.Equals("Content-Type", StringComparison.OrdinalIgnoreCase))
+                {
+                    request.ContentType = value;
+                }
+                else if (key.Equals("User-Agent", StringComparison.OrdinalIgnoreCase))
+                {
+                    request.UserAgent = value;
+                }
+                else
+                {
+                    request.Headers.Add(key, value);
+                }
+            }
+        }
+
+        private static string ReadStreamWithLimit(Stream stream, int maxSize, Encoding encoding)
+        {
+            if (stream == null)
+                return string.Empty;
+
             if (encoding == null)
                 encoding = Encoding.UTF8;
 
-            byte[] buffer = new byte[8192]; // 8KB buffer
-            using (MemoryStream memoryStream = new MemoryStream(1024)) // Initial 1KB capacity
+            byte[] buffer = new byte[8192];
+            using (var ms = new MemoryStream())
             {
                 int bytesRead;
                 int totalBytes = 0;
@@ -220,12 +343,13 @@ namespace HttpRequestLibrary
                 {
                     totalBytes += bytesRead;
                     if (totalBytes > maxSize)
-                    {
-                        throw new InvalidOperationException($"Response exceeded maximum size of {maxSize / 1024 / 1024} MB");
-                    }
-                    memoryStream.Write(buffer, 0, bytesRead);
+                        throw new InvalidOperationException(
+                            $"Response limit exceeded ({maxSize / 1024 / 1024} MB)");
+
+                    ms.Write(buffer, 0, bytesRead);
                 }
-                return encoding.GetString(memoryStream.ToArray());
+
+                return encoding.GetString(ms.ToArray());
             }
         }
 
@@ -233,29 +357,30 @@ namespace HttpRequestLibrary
         {
             if (!string.IsNullOrEmpty(contentType))
             {
-                // Split on semicolon and find charset
-                string[] parts = contentType.Split(';');
-                foreach (var part in parts)
+                try
                 {
-                    string trimmedPart = part.Trim();
-                    if (trimmedPart.StartsWith("charset=", StringComparison.OrdinalIgnoreCase))
+                    string[] parts = contentType.Split(';');
+                    foreach (var part in parts)
                     {
-                        string charset = trimmedPart.Substring(8).Trim('"', '\'');
-                        if (!string.IsNullOrEmpty(charset))
+                        string trimmed = part.Trim();
+                        if (trimmed.StartsWith("charset=", StringComparison.OrdinalIgnoreCase))
                         {
-                            try
+                            string charset = trimmed.Substring("charset=".Length)
+                                                 .Trim('"', '\'');
+                            if (!string.IsNullOrEmpty(charset))
                             {
                                 return Encoding.GetEncoding(charset);
-                            }
-                            catch
-                            {
-                                // Log invalid charset for debugging (not in SQL CLR)
                             }
                         }
                     }
                 }
+                catch
+                {
+                    // Charset inválido: cai para UTF-8
+                }
             }
-            return Encoding.UTF8; // Default
+
+            return Encoding.UTF8;
         }
     }
 }
