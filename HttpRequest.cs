@@ -40,6 +40,10 @@ namespace HttpRequestLibrary
             {
                 ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls;
                 ServicePointManager.Expect100Continue = false;
+                if (ServicePointManager.DefaultConnectionLimit < 512)
+                {
+                    ServicePointManager.DefaultConnectionLimit = 512;
+                }
                 // Validate inputs
                 if (method.IsNull || string.IsNullOrWhiteSpace(method.Value))
                 {
