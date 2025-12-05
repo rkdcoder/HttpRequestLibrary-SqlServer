@@ -52,10 +52,23 @@ namespace HttpRequestLibrary
                 Uri uri = null;
 
                 // 1. Configuração de Segurança / Conexões (nível AppDomain)
-                ServicePointManager.SecurityProtocol =
-                    SecurityProtocolType.Tls12 |
-                    SecurityProtocolType.Tls11 |
-                    SecurityProtocolType.Tls;
+                try
+                {
+                    ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
+                }
+                catch { }
+
+                // 2. Tenta injetar o TLS 1.3
+                try
+                {
+                    const int Tls13Value = 12288;
+                    ServicePointManager.SecurityProtocol |= (SecurityProtocolType)Tls13Value;
+                }
+                catch
+                {
+                    // O ambiente (Windows/CLR) é antigo e não suporta TLS 1.3. 
+                    // Vida que segue com o TLS mais seguro disponível.
+                }
 
                 ServicePointManager.Expect100Continue = false;
 
