@@ -93,7 +93,8 @@ CREATE FUNCTION dbo.HttpRequest
     @url NVARCHAR(MAX),
     @headers NVARCHAR(MAX),
     @timeout INT,
-    @payload NVARCHAR(MAX)
+    @payload NVARCHAR(MAX),
+    @skipCertificateValidation BIT
 )
 RETURNS TABLE
 (
@@ -102,7 +103,7 @@ RETURNS TABLE
     timing BIGINT
 )
 AS
-EXTERNAL NAME HttpRequestLibrary.[HttpRequestLibrary.HttpRequest].FrisiaHttpRequest;
+EXTERNAL NAME HttpRequestLibrary.[HttpRequestLibrary.HttpRequest].DllHttpRequest;
 ```
 
 ---
@@ -115,6 +116,7 @@ SELECT * FROM dbo.HttpRequest(
     'https://api.example.com/data',
     '[{"Authorization":"Bearer <your_token>"}, {"Content-Type":"application/json"}]',
     3000,
+    NULL,
     NULL
 );
 ```

@@ -35,21 +35,35 @@ namespace HttpRequestLibrary
             DataAccess = DataAccessKind.None,
             FillRowMethodName = "FillRow",
             TableDefinition = "statusCode INT, response NVARCHAR(MAX), timing BIGINT")]
-        public static IEnumerable FrisiaHttpRequest(
+        public static IEnumerable DllHttpRequest(
             SqlString method,
             SqlString url,
             SqlString headers,
             SqlInt32 timeout,
-            SqlString payload)
+            SqlString payload,
+            SqlBoolean skipCertificateValidation)
         {
             var result = new HttpResponse();
             var stopwatch = Stopwatch.StartNew();
 
             bool hasError = false;
 
+            // guarda o callback original para restaurar depois
+            var originalCertValidation = ServicePointManager.ServerCertificateValidationCallback;
+
             try
             {
                 Uri uri = null;
+
+                // SqlBoolean: True => entra, False/Null => não entra (opção segura)
+                if (skipCertificateValidation)
+                {
+                    ServicePointManager.ServerCertificateValidationCallback = (sender, cert, chain, errors) =>
+                    {
+                        // aceita todos os certificados
+                        return true;
+                    };
+                }
 
                 // 1. Configuração de Segurança / Conexões (nível AppDomain)
                 try
@@ -264,6 +278,9 @@ namespace HttpRequestLibrary
             }
             finally
             {
+                // restaura sempre o callback original (evita ficar inseguro para sempre)
+                ServicePointManager.ServerCertificateValidationCallback = originalCertValidation;
+
                 if (stopwatch.IsRunning)
                     stopwatch.Stop();
 
