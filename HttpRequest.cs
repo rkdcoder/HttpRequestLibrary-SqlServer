@@ -43,6 +43,8 @@ namespace HttpRequestLibrary
             SqlString payload,
             SqlBoolean skipCertificateValidation)
         {
+            try { EnableUnsafeHeaderParsing(); } catch { /* Ignora se falhar por permissão */ }
+
             var result = new HttpResponse();
             var stopwatch = Stopwatch.StartNew();
 
@@ -134,6 +136,7 @@ namespace HttpRequestLibrary
                     request.Timeout = timeoutValue;
                     request.ReadWriteTimeout = timeoutValue;
                     request.UserAgent = "HttpRequestLibrary/1.0";
+                    request.KeepAlive = false;
 
                     // 3.1 Headers
                     if (!headers.IsNull && !string.IsNullOrWhiteSpace(headers.Value))
@@ -411,6 +414,22 @@ namespace HttpRequestLibrary
             }
 
             return Encoding.UTF8;
+        }
+
+        private static void EnableUnsafeHeaderParsing()
+        {
+            var assembly = typeof(System.Net.Configuration.SettingsSection).Assembly;
+
+            var settingsType = assembly.GetType("System.Net.Configuration.SettingsSectionInternal");
+
+            var args = new object[0];
+            var instance = settingsType.GetProperty("Section", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic).GetValue(null, args);
+
+            var useUnsafeHeaderParsingField = settingsType.GetField("useUnsafeHeaderParsing", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            if (useUnsafeHeaderParsingField != null)
+            {
+                useUnsafeHeaderParsingField.SetValue(instance, true);
+            }
         }
     }
 }
